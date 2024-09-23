@@ -13,7 +13,9 @@ import android.view.Menu
 import android.view.MenuItem
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import androidx.lifecycle.lifecycleScope
 import com.google.gson.JsonObject
+import kotlinx.coroutines.launch
 import pl.gotrainey.gotrainey.databinding.ActivityMainBinding
 import pl.gotrainey.gotrainey.interfaces.JsonResponseCallback
 import pl.gotrainey.gotrainey.services.TrainApiService
@@ -36,7 +38,9 @@ class MainActivity : AppCompatActivity() {
         binding.startStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 Log.d("MainActivity", "Stacja Startowa changed: ${s.toString()}")
-                trainApiService.findStation(s.toString())
+                lifecycleScope.launch {
+                    val stations = trainApiService.findStation(s.toString())
+                }
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -49,6 +53,9 @@ class MainActivity : AppCompatActivity() {
         binding.endStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 Log.d("MainActivity", "Stacja Końcowa changed: ${s.toString()}")
+                lifecycleScope.launch {
+                    val stations = trainApiService.findStation(s.toString())
+                }
             }
 
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
@@ -74,49 +81,50 @@ class MainActivity : AppCompatActivity() {
             var startStation: String = binding.startStation.text.toString()
             var endStation: String = binding.endStation.text.toString()
             var trainNumber: String = binding.trainNumber.text.toString()
-
-            getTrain(startStation, endStation, trainNumber)
+            lifecycleScope.launch {
+                val connectionId = getTrain(startStation, endStation, trainNumber)
+                Log.d("CONNECTION_ID", connectionId.toString())
+            }
         }
 
     }
 
-    fun getTrain(startStation: String, endStation: String, trainNumber: String) {
+    suspend fun getTrain(startStation: String, endStation: String, trainNumber: String): String? {
         val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).toString()
-        val json = trainApiService.getTrains(startStation, endStation, date, object :
-            JsonResponseCallback {
-            override fun onSuccess(json: JsonObject) {
-                Log.d("TrainApiService", "Received trains: $json")
+        var connectionId: String? = null
 
+        for(i in 0 until 24){
+            if (connectionId !== null){
+                break
             }
+            val json = trainApiService.getConnections(startStation, endStation, date)
 
-            override fun onError(error: String) {
-                Log.e("TrainApiService", "Error: $error")
-            }
-        })
+            if (json !== null) {
+                val trains = json.getAsJsonArray("trains")
+                val connections = json.getAsJsonArray("connections")
+                if (trains != null && connections != null) {
 
-        val trains = json.getAsJsonArray("trains")
-        val connections = json.getAsJsonArray("connections")
-        if (trains != null && connections != null) {
-            var connectionId: String? = null
+                    for (i in 0 until trains.size()) {
+                        val train = trains[i].asJsonObject
+                        val trainNumberToCheck = train.get("train_nr").asString
 
-            for (i in 0 until trains.size()) {
-                val train = trains[i].asJsonObject
-                val trainNumberToCheck = train.get("train_nr").asString
+                        if (trainNumberToCheck == trainNumber) {
+                            connectionId = train.get("connection_id").asString
+                            break
+                        }
+                    }
 
-                if (trainNumberToCheck == trainNumber) {
-                    connectionId = train.get("connection_id").asString
-                    break
-                }
-            }
-
-            for (i in 0 until connections.size()) {
-                val connection = connections[i].asJsonObject
-                val connectionIdToCheck = connection.get("id").asString
-                if (connectionId == connectionIdToCheck){
-                    return connectionId
+                    for (i in 0 until connections.size()) {
+                        val connection = connections[i].asJsonObject
+                        val connectionIdToCheck = connection.get("id").asString
+                        if (connectionId == connectionIdToCheck) {
+                            break
+                        }
+                    }
                 }
             }
         }
+        return connectionId
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
