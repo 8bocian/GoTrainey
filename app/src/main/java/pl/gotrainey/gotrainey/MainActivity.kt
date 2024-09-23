@@ -11,11 +11,17 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
+import android.widget.EditText
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonObject
 import kotlinx.coroutines.launch
+import org.json.JSONObject
+import pl.gotrainey.gotrainey.adapters.StationAdapter
 import pl.gotrainey.gotrainey.databinding.ActivityMainBinding
 import pl.gotrainey.gotrainey.interfaces.JsonResponseCallback
 import pl.gotrainey.gotrainey.services.TrainApiService
@@ -29,19 +35,53 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
+    private lateinit var startStationAdapter: StationAdapter
+    private lateinit var endStationAdapter: StationAdapter
+    private val startStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
+    private val endStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
+
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // START STATION ADAPTER
+
+        startStationAdapter = StationAdapter(startStationList) { selectedItem ->
+            binding.startStation.setText(selectedItem)
+            binding.startStationRecyclerView.visibility = View.GONE
+        }
+
+        binding.startStationRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.startStationRecyclerView.adapter = startStationAdapter
+
+        // END STATION ADAPTER
+
+        endStationAdapter = StationAdapter(endStationList) { selectedItem ->
+            binding.endStation.setText(selectedItem)
+            binding.endStationRecyclerView.visibility = View.GONE
+        }
+
+        binding.endStationRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.endStationRecyclerView.adapter = endStationAdapter
+
+
         //TODO: AFTER CHANGE OF TEXT DISPLAY A LIST OF POSSIBLE STATIONS AND LET USER PICK ONE
 
         binding.startStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                Log.d("MainActivity", "Stacja Startowa changed: ${s.toString()}")
-                lifecycleScope.launch {
-                    val stations = trainApiService.findStation(s.toString())
+                if (s.isNullOrEmpty()) {
+                    binding.startStationRecyclerView.visibility = View.GONE
+                } else {
+                    lifecycleScope.launch {
+                        val stations = trainApiService.findStation(s.toString())
+                        Log.d("STATIONS", stations.toString())
+                        if (stations !== null){
+                            fetchSuggestions(suggestionList = parseJsonToListOfMaps(stations), adapter = startStationAdapter, recyclerView = binding.startStationRecyclerView, stations = startStationList)
+                        }
+                    }
                 }
             }
 
@@ -54,9 +94,16 @@ class MainActivity : AppCompatActivity() {
 
         binding.endStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                Log.d("MainActivity", "Stacja Końcowa changed: ${s.toString()}")
-                lifecycleScope.launch {
-                    val stations = trainApiService.findStation(s.toString())
+                if (s.isNullOrEmpty()) {
+                    binding.endStationRecyclerView.visibility = View.GONE
+                } else {
+                    lifecycleScope.launch {
+                        val stations = trainApiService.findStation(s.toString())
+                        Log.d("STATIONS", stations.toString())
+                        if (stations !== null){
+                            fetchSuggestions(suggestionList = parseJsonToListOfMaps(stations), adapter = endStationAdapter, recyclerView = binding.endStationRecyclerView, stations = endStationList)
+                        }
+                    }
                 }
             }
 
@@ -90,6 +137,32 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+    }
+
+    fun parseJsonToListOfMaps(json: JsonObject): MutableList<Map<String, Any>> {
+        val stationsArray = json.getAsJsonArray("stations")
+
+        val listOfMaps = mutableListOf<Map<String, Any>>()
+
+        for (i in 0 until stationsArray.size()) {
+            val station = stationsArray[i].asJsonObject
+            val map = mapOf(
+                "id" to station.get("id").asInt,
+                "name" to station.get("name").asString,
+                "name_slug" to station.get("name_slug").asString
+            )
+            listOfMaps.add(map)
+        }
+
+        return listOfMaps
+    }
+
+    private fun fetchSuggestions(suggestionList: MutableList<Map<String, Any>>, adapter: StationAdapter, recyclerView: RecyclerView, stations: List<Map<String, Any>>) {
+        suggestionList.clear()
+        suggestionList.addAll(stations)
+        adapter.notifyDataSetChanged()
+        Log.d("CHANGE", suggestionList.toString())
+        recyclerView.visibility = if (suggestionList.isEmpty()) View.GONE else View.VISIBLE
     }
 
     suspend fun getTrain(startStation: String, endStation: String, trainNumber: String): String? {
