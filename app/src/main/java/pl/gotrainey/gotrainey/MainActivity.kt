@@ -1,5 +1,6 @@
 package pl.gotrainey.gotrainey
 
+import android.os.Build
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -15,18 +16,22 @@ import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.EditText
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonObject
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import pl.gotrainey.gotrainey.adapters.CartAdapter
 import pl.gotrainey.gotrainey.adapters.StationAdapter
 import pl.gotrainey.gotrainey.databinding.ActivityMainBinding
 import pl.gotrainey.gotrainey.interfaces.JsonResponseCallback
 import pl.gotrainey.gotrainey.services.TrainApiService
 import java.text.SimpleDateFormat
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
@@ -35,10 +40,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
+    private lateinit var cartAdapter: CartAdapter
     private lateinit var startStationAdapter: StationAdapter
     private lateinit var endStationAdapter: StationAdapter
     private val startStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
     private val endStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
+    private val cartList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +74,19 @@ class MainActivity : AppCompatActivity() {
         binding.endStationRecyclerView.layoutManager = LinearLayoutManager(this)
         binding.endStationRecyclerView.adapter = endStationAdapter
 
+        // CART ADAPTER
+
+
+        val carts: MutableList<Map<String, Any>> = mutableListOf(mapOf(Pair("cart_name", "Gniezno")), mapOf(Pair("cart_name", "Poznan")))
+//        showCarts(cartList = cartList, adapter = cartAdapter, recyclerView = binding.cartRecyclerView, carts = carts)
+
+        cartAdapter = CartAdapter(cartList)
+        cartList.clear()
+        cartList.addAll(carts)
+        cartAdapter.notifyDataSetChanged()
+
+        binding.cartRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.cartRecyclerView.adapter = endStationAdapter
 
         //TODO: AFTER CHANGE OF TEXT DISPLAY A LIST OF POSSIBLE STATIONS AND LET USER PICK ONE
 
@@ -76,10 +96,11 @@ class MainActivity : AppCompatActivity() {
                     binding.startStationRecyclerView.visibility = View.GONE
                 } else {
                     lifecycleScope.launch {
-                        val stations = trainApiService.findStation(s.toString())
+//                        val stations = trainApiService.findStation(s.toString())
+                        val stations: MutableList<Map<String, Any>> = mutableListOf(mapOf(Pair("name", "Gniezno")), mapOf(Pair("name", "Poznan")))
                         Log.d("STATIONS", stations.toString())
                         if (stations !== null){
-                            fetchSuggestions(suggestionList = parseJsonToListOfMaps(stations), adapter = startStationAdapter, recyclerView = binding.startStationRecyclerView, stations = startStationList)
+                            fetchSuggestions(suggestionList = startStationList, adapter = startStationAdapter, recyclerView = binding.startStationRecyclerView, stations = stations)
                         }
                     }
                 }
@@ -98,10 +119,12 @@ class MainActivity : AppCompatActivity() {
                     binding.endStationRecyclerView.visibility = View.GONE
                 } else {
                     lifecycleScope.launch {
-                        val stations = trainApiService.findStation(s.toString())
+//                        val stations = trainApiService.findStation(s.toString())
+                        val stations: MutableList<Map<String, Any>> = mutableListOf(mapOf(Pair("name", "Gniezno")), mapOf(Pair("name", "Poznan")))
+
                         Log.d("STATIONS", stations.toString())
                         if (stations !== null){
-                            fetchSuggestions(suggestionList = parseJsonToListOfMaps(stations), adapter = endStationAdapter, recyclerView = binding.endStationRecyclerView, stations = endStationList)
+                            fetchSuggestions(suggestionList = endStationList, adapter = endStationAdapter, recyclerView = binding.endStationRecyclerView, stations = stations)
                         }
                     }
                 }
@@ -132,8 +155,8 @@ class MainActivity : AppCompatActivity() {
             var endStation: String = binding.endStation.text.toString()
             var trainNumber: String = binding.trainNumber.text.toString()
             lifecycleScope.launch {
-                val connectionId = getTrain(startStation, endStation, trainNumber)
-                Log.d("CONNECTION_ID", connectionId.toString())
+//                val connectionId = getTrain(startStation, endStation, trainNumber)
+//                Log.d("CONNECTION_ID", connectionId.toString())
             }
         }
 
@@ -157,21 +180,39 @@ class MainActivity : AppCompatActivity() {
         return listOfMaps
     }
 
-    private fun fetchSuggestions(suggestionList: MutableList<Map<String, Any>>, adapter: StationAdapter, recyclerView: RecyclerView, stations: List<Map<String, Any>>) {
+    private fun fetchSuggestions(suggestionList: MutableList<Map<String, Any>>, adapter: StationAdapter, recyclerView: RecyclerView, stations: MutableList<Map<String, Any>>) {
         suggestionList.clear()
         suggestionList.addAll(stations)
         adapter.notifyDataSetChanged()
         Log.d("CHANGE", suggestionList.toString())
+        Log.d("CHANGE", stations.toString())
         recyclerView.visibility = if (suggestionList.isEmpty()) View.GONE else View.VISIBLE
     }
 
+    private fun showCarts(cartList: MutableList<Map<String, Any>>, adapter: CartAdapter, recyclerView: RecyclerView, carts: MutableList<Map<String, Any>>) {
+        cartList.clear()
+        cartList.addAll(carts)
+        adapter.notifyDataSetChanged()
+        Log.d("CHANGE", cartList.toString())
+        Log.d("CHANGE", carts.toString())
+        recyclerView.visibility = View.VISIBLE
+    }
+
     suspend fun getTrain(startStation: String, endStation: String, trainNumber: String): String? {
-        val date = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).toString()
         var connectionId: String? = null
 
         for(i in 0 until 24){
             if (connectionId !== null){
                 break
+            }
+            val date = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val dateTime = LocalDateTime.now().minusHours(i.toLong())
+                dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+            } else {
+                val calendar = Calendar.getInstance()
+                calendar.add(Calendar.HOUR_OF_DAY, -i)
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                dateFormat.format(calendar.time)
             }
             val json = trainApiService.getConnections(startStation, endStation, date)
 
