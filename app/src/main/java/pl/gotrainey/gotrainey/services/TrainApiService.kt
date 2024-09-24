@@ -46,8 +46,8 @@ class TrainApiService {
         return performRequest(request)
     }
 
-    suspend fun getTrainComposition(trainId: String): JsonObject? {
-        val url = "https://koleo.pl/train_composition/$trainId"
+    suspend fun getTrainComposition(connectionId: String, trainId: String): JsonObject? {
+        val url = "https://koleo.pl/train_composition/$connectionId/$trainId/5"
 
         val request = Request.Builder()
             .url(url)
@@ -58,8 +58,8 @@ class TrainApiService {
         return performRequest(request)
     }
 
-    suspend fun getTrainPlaces(trainId: String): JsonObject? {
-        val url = "https://koleo.pl/seats_availability/$trainId"
+    suspend fun getTrainPlaces(connectionId: String, trainId: String): JsonObject? {
+        val url = "https://koleo.pl/seats_availability/$connectionId/$trainId/5"
 
         val request = Request.Builder()
             .url(url)
