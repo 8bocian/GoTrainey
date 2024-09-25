@@ -20,12 +20,12 @@ class CartsAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val cartName = cartsList[position]["number"]
         val seatsList = cartsList[position]["seats"] as List<Any>
-        holder.cartName.text = "WAGON ${cartName.toString()}"
+        holder.cartName.text = "WAGON\n${cartName.toString()}"
 
         val gridAdapter = SeatsAdapter(seatsList)
         holder.seatsGrid.adapter = gridAdapter
 
-        val gridLayoutManager = GridLayoutManager(holder.itemView.context, 3)
+        val gridLayoutManager = GridLayoutManager(holder.itemView.context, 4)
         holder.seatsGrid.layoutManager = gridLayoutManager
     }
 

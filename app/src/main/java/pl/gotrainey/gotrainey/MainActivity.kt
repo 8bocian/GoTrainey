@@ -154,11 +154,11 @@ class MainActivity : AppCompatActivity() {
             var endStation: String = binding.endStation.text.toString()
             var trainNumber: String = binding.trainNumber.text.toString()
             lifecycleScope.launch {
-//                val connectionId = getTrain(startStation, endStation, trainNumber)
-                val connectionId = 10
+                val connectionId = getTrain(startStation, endStation, trainNumber)
+//                val connectionId = 10
                 Log.d("CONNECTION_ID", connectionId.toString())
                 if (connectionId !== null) {
-//                    val cartsJson = trainApiService.getTrainPlaces(connectionId, trainNumber)
+                    val cartsJson = trainApiService.getTrainPlaces(connectionId, trainNumber)
                     val cartsString = """
                         {
                           "seats": [
@@ -195,7 +195,7 @@ class MainActivity : AppCompatActivity() {
                         }
 
                     """.trimIndent()
-                    val cartsJson = JsonParser.parseString(cartsString).asJsonObject
+//                    val cartsJson = JsonParser.parseString(cartsString).asJsonObject
                     if (cartsJson !== null) {
                         val carts = parseFreeSeats(cartsJson)
                         updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
