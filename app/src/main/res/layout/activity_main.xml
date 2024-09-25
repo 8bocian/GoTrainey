@@ -19,7 +19,7 @@
 
         <EditText
             android:id="@+id/startStation"
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:ems="10"
             android:inputType="text"
@@ -29,7 +29,6 @@
             android:id="@+id/startStationRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:visibility="gone" />
     </LinearLayout>
 
@@ -86,12 +85,14 @@
         app:layout_constraintTop_toBottomOf="@+id/trainNumber" />
 
     <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/cartRecyclerView"
+        android:id="@+id/cartsRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="200dp"
-        android:layout_margin="28dp"
-        android:visibility="visible"
-        tools:listitem="@layout/cart_places"
-        app:layout_constraintTop_toBottomOf="@+id/search"/>
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:paddingHorizontal="28dp"
+        tools:listitem="@layout/cart"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/search" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
