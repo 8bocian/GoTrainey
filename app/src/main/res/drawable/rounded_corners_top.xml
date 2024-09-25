@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Top half (rounded) -->
+    <item android:top="0dp" android:bottom="50dp">
+        <shape android:shape="rectangle">
+            <corners android:topLeftRadius="22dp"
+                android:topRightRadius="22dp" />
+            <solid android:color="#D9D9D9"/>
+        </shape>
+    </item>
+
+    <!-- Bottom half (no corners) -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#00000000"/> <!-- Can also be transparent using #00000000 -->
+        </shape>
+    </item>
+
+</layer-list>

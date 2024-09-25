@@ -21,6 +21,9 @@
             android:id="@+id/startStation"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/rounded_corners"
+            android:backgroundTint="#D9D9D9"
+            android:padding="10dp"
             android:ems="10"
             android:inputType="text"
             android:hint="Stacja Startowa"/>
@@ -49,6 +52,9 @@
             android:id="@+id/endStation"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:background="@drawable/rounded_corners"
+            android:backgroundTint="#D9D9D9"
+            android:padding="10dp"
             android:ems="10"
             android:inputType="text"
             android:hint="Stacja Końcowa"/>
@@ -65,6 +71,9 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="28dp"
+        android:background="@drawable/rounded_corners"
+        android:backgroundTint="#D9D9D9"
+        android:padding="10dp"
         android:ems="10"
         android:inputType="text"
         android:hint="Numer Pociągu"
@@ -80,19 +89,18 @@
         android:layout_marginTop="28dp"
         android:text="Szukaj"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.498"
+        app:layout_constraintHorizontal_bias="0.5"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/trainNumber" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/cartsRecyclerView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:paddingHorizontal="28dp"
-        tools:listitem="@layout/cart"
+        android:layout_height="0dp"
+
+        android:orientation="horizontal"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/search" />
-
+        app:layout_constraintTop_toBottomOf="@+id/search"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>

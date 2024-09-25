@@ -19,8 +19,10 @@ import android.widget.AutoCompleteTextView
 import android.widget.EditText
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import pl.gotrainey.gotrainey.adapters.CartsAdapter
@@ -81,8 +83,12 @@ class MainActivity : AppCompatActivity() {
 
         cartsAdapter = CartsAdapter(cartsList)
 
-        binding.cartsRecyclerView.layoutManager = LinearLayoutManager(this)
+        binding.cartsRecyclerView.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         binding.cartsRecyclerView.adapter = cartsAdapter
+
+        val snapHelper = LinearSnapHelper()
+        snapHelper.attachToRecyclerView(binding.cartsRecyclerView)
+
 
         //TODO: AFTER CHANGE OF TEXT DISPLAY A LIST OF POSSIBLE STATIONS AND LET USER PICK ONE
 
@@ -148,10 +154,48 @@ class MainActivity : AppCompatActivity() {
             var endStation: String = binding.endStation.text.toString()
             var trainNumber: String = binding.trainNumber.text.toString()
             lifecycleScope.launch {
-                val connectionId = getTrain(startStation, endStation, trainNumber)
+//                val connectionId = getTrain(startStation, endStation, trainNumber)
+                val connectionId = 10
                 Log.d("CONNECTION_ID", connectionId.toString())
                 if (connectionId !== null) {
-                    val cartsJson = trainApiService.getTrainPlaces(connectionId, trainNumber)
+//                    val cartsJson = trainApiService.getTrainPlaces(connectionId, trainNumber)
+                    val cartsString = """
+                        {
+                          "seats": [
+                            {"carriage_nr": "1", "seat_nr": "12", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
+                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
+                            {"carriage_nr": "2", "seat_nr": "23", "state": "FREE"},
+                            {"carriage_nr": "2", "seat_nr": "13", "state": "FREE"},
+                            {"carriage_nr": "2", "seat_nr": "67", "state": "FREE"},
+                            {"carriage_nr": "2", "seat_nr": "59", "state": "FREE"}
+                          ]
+                        }
+
+                    """.trimIndent()
+                    val cartsJson = JsonParser.parseString(cartsString).asJsonObject
                     if (cartsJson !== null) {
                         val carts = parseFreeSeats(cartsJson)
                         updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
@@ -212,10 +256,15 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        return freeSeatsMap.map { (carriageNr, seatList) ->
-            mapOf("number" to carriageNr, "seats" to seatList)
-        }.toMutableList()
+        // Sort carriage numbers numerically in descending order
+        return freeSeatsMap.entries
+            .sortedByDescending { it.key.toInt() }  // Convert carriage numbers to integers for sorting
+            .map { (carriageNr, seatList) ->
+                mapOf("number" to carriageNr, "seats" to seatList)
+            }
+            .toMutableList()
     }
+
 
     suspend fun getTrain(startStation: String, endStation: String, trainNumber: String): String? {
         var connectionId: String? = null

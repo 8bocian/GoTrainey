@@ -4,11 +4,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import pl.gotrainey.gotrainey.R
 
 class CartsAdapter(
-    private val suggestionList: List<Map<String, Any>>
+    private val cartsList: List<Map<String, Any>>
 ) : RecyclerView.Adapter<CartsAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -17,14 +18,21 @@ class CartsAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val cartName = suggestionList[position]["number"]
-        holder.textView.text = "WAGON ${cartName.toString()}"
+        val cartName = cartsList[position]["number"]
+        val seatsList = cartsList[position]["seats"] as List<Any>
+        holder.cartName.text = "WAGON ${cartName.toString()}"
 
+        val gridAdapter = SeatsAdapter(seatsList)
+        holder.seatsGrid.adapter = gridAdapter
+
+        val gridLayoutManager = GridLayoutManager(holder.itemView.context, 3)
+        holder.seatsGrid.layoutManager = gridLayoutManager
     }
 
-    override fun getItemCount(): Int = suggestionList.size
+    override fun getItemCount(): Int = cartsList.size
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val textView: TextView = itemView.findViewById(R.id.cartName)
+        val cartName: TextView = itemView.findViewById(R.id.cartName)
+        val seatsGrid: RecyclerView = itemView.findViewById(R.id.seatsGrid)
     }
 }
