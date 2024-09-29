@@ -19,7 +19,6 @@ class SeatsAdapter(
 
     override fun onBindViewHolder(holder: GridViewHolder, position: Int) {
         val place = seatsList[position]
-        Log.d("SEAT", place.toString())
         holder.seatName.text = place.toString()
         holder.seatName.post {
             holder.seatName.height = holder.seatName.width

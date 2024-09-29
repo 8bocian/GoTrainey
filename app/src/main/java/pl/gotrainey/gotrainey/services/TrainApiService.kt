@@ -58,6 +58,22 @@ class TrainApiService {
         return performRequest(request)
     }
 
+    suspend fun getTrainStations(trainId: String): JsonObject? {
+        val params = mapOf(
+            "travel_train_id" to trainId
+        )
+
+        val url = "https://koleo.pl/travel_train?" + encodeParams(params)
+
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/json, text/javascript, */*; q=0.01")
+            .addHeader("X-Requested-With", "XMLHttpRequest")
+            .build()
+
+        return performRequest(request)
+    }
+
     suspend fun getTrainPlaces(connectionId: String, trainId: String): JsonObject? {
         val url = "https://koleo.pl/seats_availability/$connectionId/$trainId/5"
 

@@ -21,20 +21,28 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import androidx.work.*
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import pl.gotrainey.gotrainey.adapters.CartsAdapter
 import pl.gotrainey.gotrainey.adapters.StationAdapter
+import pl.gotrainey.gotrainey.data_classes.Path
+import pl.gotrainey.gotrainey.data_classes.TrainDescription
+import pl.gotrainey.gotrainey.data_classes.Trip
 import pl.gotrainey.gotrainey.databinding.ActivityMainBinding
 import pl.gotrainey.gotrainey.interfaces.JsonResponseCallback
+import pl.gotrainey.gotrainey.schedulers.Scheduler
 import pl.gotrainey.gotrainey.services.TrainApiService
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
@@ -49,9 +57,9 @@ class MainActivity : AppCompatActivity() {
     private val endStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
 
     private lateinit var cartsAdapter: CartsAdapter
-
     private val cartsList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
 
+    private val trip = Trip()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,7 +69,7 @@ class MainActivity : AppCompatActivity() {
 
         // START STATION ADAPTER
 
-        startStationAdapter = StationAdapter(startStationList) { selectedItem ->
+        startStationAdapter = StationAdapter(startStationList, binding.startStationRecyclerView) { selectedItem ->
             binding.startStation.setText(selectedItem)
             binding.startStationRecyclerView.visibility = View.GONE
         }
@@ -71,7 +79,7 @@ class MainActivity : AppCompatActivity() {
 
         // END STATION ADAPTER
 
-        endStationAdapter = StationAdapter(endStationList) { selectedItem ->
+        endStationAdapter = StationAdapter(endStationList, binding.endStationRecyclerView) { selectedItem ->
             binding.endStation.setText(selectedItem)
             binding.endStationRecyclerView.visibility = View.GONE
         }
@@ -94,9 +102,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.startStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                if (s.isNullOrEmpty()) {
+                Log.d("BLANK 2", (s.isNullOrEmpty() || startStationList.isEmpty()).toString())
+                if (s.isNullOrEmpty() || startStationList.isEmpty()) {
                     binding.startStationRecyclerView.visibility = View.GONE
-                } else {
+                }
+                if (!s.isNullOrEmpty()){
+                    binding.startStationRecyclerView.visibility = View.VISIBLE
+
                     lifecycleScope.launch {
                         val stations = trainApiService.findStation(s.toString())
                         Log.d("STATIONS", stations.toString())
@@ -116,9 +128,11 @@ class MainActivity : AppCompatActivity() {
 
         binding.endStation.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
-                if (s.isNullOrEmpty()) {
+                if (s.isNullOrEmpty() || endStationList.isEmpty()) {
                     binding.endStationRecyclerView.visibility = View.GONE
-                } else {
+                }
+                if (!s.isNullOrEmpty()){
+                    binding.endStationRecyclerView.visibility = View.VISIBLE
                     lifecycleScope.launch {
                         val stations = trainApiService.findStation(s.toString())
                         Log.d("STATIONS", stations.toString())
@@ -150,60 +164,91 @@ class MainActivity : AppCompatActivity() {
 
         //TODO: AFTER USER GETS THE TRAIN THEN GIVE HIM SOME KIND OF A LIST WITH FREE PLACES IN EACH CART
         binding.search.setOnClickListener {
-            var startStation: String = binding.startStation.text.toString()
-            var endStation: String = binding.endStation.text.toString()
-            var trainNumber: String = binding.trainNumber.text.toString()
+            val startStation: String = binding.startStation.text.toString()
+            val endStation: String = binding.endStation.text.toString()
+            val trainNumber: String = binding.trainNumber.text.toString()
+            trip.trainNumber = trainNumber
             lifecycleScope.launch {
-                val connectionId = getTrain(startStation, endStation, trainNumber)
-//                val connectionId = 10
-                Log.d("CONNECTION_ID", connectionId.toString())
-                if (connectionId !== null) {
-                    val cartsJson = trainApiService.getTrainPlaces(connectionId, trainNumber)
-                    val cartsString = """
-                        {
-                          "seats": [
-                            {"carriage_nr": "1", "seat_nr": "12", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "15", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "1", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "5", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "3", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "23", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "13", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "67", "state": "FREE"},
-                            {"carriage_nr": "1", "seat_nr": "59", "state": "FREE"},
-                            {"carriage_nr": "2", "seat_nr": "23", "state": "FREE"},
-                            {"carriage_nr": "2", "seat_nr": "13", "state": "FREE"},
-                            {"carriage_nr": "2", "seat_nr": "67", "state": "FREE"},
-                            {"carriage_nr": "2", "seat_nr": "59", "state": "FREE"}
-                          ]
-                        }
 
-                    """.trimIndent()
-//                    val cartsJson = JsonParser.parseString(cartsString).asJsonObject
-                    if (cartsJson !== null) {
-                        val carts = parseFreeSeats(cartsJson)
-                        updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
+                val trainDescription: TrainDescription = findTrain(startStation, endStation, trainNumber, timeStopLimit = Pair(-1, 4), arrivalDate = null)
+
+                if (trainDescription.trainId !== null && trainDescription.connectionId !== null && trainDescription.startDate !== null) {
+                    val paths = getPaths(trainDescription.trainId, trainDescription.startDate, startStation, endStation)
+                    trip.paths = paths
+                    trip.trainId = trainDescription.trainId
+                    var delayInMillis = 10000
+                    paths.forEach{
+
+                        val inputData = Data.Builder()
+                            .putString("trainNumber", trainNumber)
+                            .putString("startStationName", it.startStationName)
+                            .putString("startStationSlug", it.startStationSlug)
+                            .putString("endStationName", it.endStationName)
+                            .putString("endStationSlug", it.endStationSlug)
+                            .putString("departureDateTime", it.departureDateTime.toString())
+                            .putString("arrivalDateTime", it.arrivalDateTime.toString())
+
+                            .build()
+
+//                        val delayInMillis = localDateTimeToCalendar(it.departureDateTime).timeInMillis - Calendar.getInstance().timeInMillis
+                        delayInMillis += 10000
+                        val workRequest = OneTimeWorkRequestBuilder<Scheduler>()
+                            .setInitialDelay(delayInMillis.toLong(), TimeUnit.MILLISECONDS)
+                            .setInputData(inputData)
+                            .build()
+
+                        WorkManager.getInstance(applicationContext).enqueue(workRequest)
+
+                        WorkManager.getInstance(applicationContext).getWorkInfoByIdLiveData(workRequest.id)
+                            .observe(this@MainActivity) { workInfo ->
+                                if (workInfo != null && workInfo.state == WorkInfo.State.SUCCEEDED) {
+                                    lifecycleScope.launch {
+                                        val subTrainDescription: TrainDescription = findTrain(
+                                            workInfo.outputData.getString("startStationName").toString(),
+                                            workInfo.outputData.getString("endStationName").toString(),
+                                            workInfo.outputData.getString("trainNumber").toString(),
+                                            timeStopLimit = Pair(0, 1),
+                                            arrivalDate = workInfo.outputData.getString("arrivalDateTime"))
+                                        if (subTrainDescription.connectionId !== null){
+                                            binding.startStation.setText(workInfo.outputData.getString("startStationName").toString())
+                                            binding.endStation.setText(workInfo.outputData.getString("endStationName").toString())
+                                            val cartsJson = trainApiService.getTrainPlaces(
+                                                subTrainDescription.connectionId,
+                                                workInfo.outputData.getString("trainNumber").toString()
+                                            )
+                                            if (cartsJson !== null) {
+                                                val carts = parseFreeSeats(cartsJson)
+                                                updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                     }
-                }
+                    }
+//                Log.d("CONNECTION_ID", trainDescription.connectionId.toString())
+//                if (trainDescription.connectionId !== null) {
+//                    val cartsJson = trainApiService.getTrainPlaces(trainDescription.connectionId, trainNumber)
+//                    if (cartsJson !== null) {
+//                        val carts = parseFreeSeats(cartsJson)
+//                        updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
+//                    }
+//                }
             }
-        }
 
+
+        }
+    }
+
+    fun localDateTimeToCalendar(localDateTime: LocalDateTime): Calendar {
+        val instant = localDateTime.atZone(ZoneId.systemDefault()).toInstant()
+
+        val date = Date.from(instant)
+
+        val calendar = Calendar.getInstance()
+        calendar.time = date
+
+        return calendar
     }
 
     fun parseJsonToListOfMaps(json: JsonObject): MutableList<Map<String, Any>> {
@@ -229,7 +274,6 @@ class MainActivity : AppCompatActivity() {
         suggestionList.addAll(stations)
         adapter.notifyDataSetChanged()
         Log.d("CHANGE", suggestionList.toString())
-        recyclerView.visibility = if (suggestionList.isEmpty()) View.GONE else View.VISIBLE
     }
 
     private fun updateCarts(cartsList: MutableList<Map<String, Any>>, adapter: CartsAdapter, recyclerView: RecyclerView, carts: List<Map<String, Any>>) {
@@ -265,25 +309,88 @@ class MainActivity : AppCompatActivity() {
             .toMutableList()
     }
 
+    suspend fun getPaths(
+        trainId: String,
+        startDate: LocalDate,
+        startStationMain: String,
+        endStationMain: String
+    ): MutableList<Path> {
+        val json = trainApiService.getTrainStations(trainId)
+        val paths = mutableListOf<Path>()
 
-    suspend fun getTrain(startStation: String, endStation: String, trainNumber: String): String? {
-        var connectionId: String? = null
+        if (json !== null) {
+            val stops = json.getAsJsonArray("stops")
 
-        for(i in 0 until 4){
-            val date = if (VERSION.SDK_INT >= VERSION_CODES.O) {
-                val dateTime = LocalDateTime.now().minusHours(i.toLong())
-                dateTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
-            } else {
-                val calendar = Calendar.getInstance()
-                calendar.add(Calendar.HOUR_OF_DAY, -i) // Subtract 1 hour
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
-                dateFormat.format(calendar.time)
+            val startIndex = stops.indexOfFirst { it.asJsonObject.get("station_name").asString == startStationMain }
+            val endIndex = stops.indexOfFirst { it.asJsonObject.get("station_name").asString == endStationMain }
+            Log.d("PATHS", "$startIndex, $endIndex")
+            if (startIndex != -1 && endIndex != -1 && startIndex < endIndex) {
+                for (i in startIndex until endIndex) {
+                    val startStation = stops[i].asJsonObject
+                    val endStation = stops[i + 1].asJsonObject
+
+                    val startStationName = startStation.get("station_name").asString
+                    val startStationSlug = startStation.get("station_slug").asString
+                    val endStationName = endStation.get("station_name").asString
+                    val endStationSlug = endStation.get("station_slug").asString
+
+                    val departureTime = LocalTime.of(
+                        startStation.getAsJsonObject("arrival").get("hour").asInt,
+                        startStation.getAsJsonObject("arrival").get("minute").asInt,
+                        startStation.getAsJsonObject("arrival").get("second").asInt
+                    )
+
+                    val arrivalTime = LocalTime.of(
+                        endStation.getAsJsonObject("arrival").get("hour").asInt,
+                        endStation.getAsJsonObject("arrival").get("minute").asInt,
+                        endStation.getAsJsonObject("arrival").get("second").asInt
+                    )
+
+                    val departureDateTime = LocalDateTime.of(startDate, departureTime)
+                    var arrivalDateTime = LocalDateTime.of(startDate, arrivalTime)
+
+                    if (arrivalDateTime.isBefore(departureDateTime)) {
+                        arrivalDateTime = arrivalDateTime.plusDays(1)
+                    }
+
+                    val path = Path(
+                        startStationName,
+                        startStationSlug,
+                        endStationName,
+                        endStationSlug,
+                        departureDateTime,
+                        arrivalDateTime
+                    )
+
+                    paths.add(path)
+                }
             }
+        }
+        return paths
+    }
+
+
+    suspend fun findTrain(startStation: String, endStation: String, trainNumber: String, arrivalDate: String?, timeStopLimit: Pair<Int, Int>): TrainDescription {
+        var connectionId: String? = null
+        var trainId: String? = null
+        var endDate: String? = null
+        var startDate: String? = null
+        for(i in timeStopLimit.first until timeStopLimit.second){
             if (connectionId !== null){
                 break
             }
+
+            val date = if (arrivalDate !== null) {
+                arrivalDate
+            } else {
+                val calendar = Calendar.getInstance()
+                calendar.add(Calendar.HOUR_OF_DAY, -i)
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault())
+                dateFormat.format(calendar.time)
+            }
             val json = trainApiService.getConnections(startStation, endStation, date)
 
+            Log.d("WYJEBALO", date)
             if (json !== null) {
                 val trains = json.getAsJsonArray("trains")
                 val connections = json.getAsJsonArray("connections")
@@ -295,6 +402,10 @@ class MainActivity : AppCompatActivity() {
 
                         if (trainNumberToCheck == trainNumber) {
                             connectionId = train.get("connection_id").asString
+                            trainId = train.get("id").asString
+                            endDate = train.get("arrival_date").asString
+                            startDate = train.get("departure_date").asString
+                            Log.d("WYJEBALO", train.toString())
                             break
                         }
                     }
@@ -309,7 +420,22 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        return connectionId
+        try{
+            TrainDescription(
+                connectionId,
+                trainId,
+                LocalDate.parse(startDate, DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")),
+                LocalDate.parse(endDate, DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd"))
+            )
+        } catch (e: Exception) {
+            Log.d("WYJEBALO", "$startStation, $endStation, $arrivalDate, ${startDate.toString()}, ${endDate.toString()}")
+        }
+        return TrainDescription(
+            connectionId,
+            trainId,
+            LocalDate.parse(startDate, DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd")),
+            LocalDate.parse(endDate, DateTimeFormatter.ofPattern("HH:mm yyyy-MM-dd"))
+        )
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
