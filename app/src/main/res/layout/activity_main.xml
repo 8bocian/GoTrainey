@@ -29,7 +29,12 @@ xmlns:tools="http://schemas.android.com/tools"
                 android:id="@+id/startStationDropDown"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:completionThreshold="1" >
+                android:completionThreshold="0"
+                android:hint="Stacja Startowa"
+                android:backgroundTint="#D9D9D9"
+                android:ems="10"
+                android:background="@drawable/rounded_corners"
+                android:padding="10dp" >
 
             </AutoCompleteTextView>
         </LinearLayout>
@@ -43,26 +48,16 @@ xmlns:tools="http://schemas.android.com/tools"
             android:layout_marginStart="7dp"
             android:layout_weight="1">
 
-            <EditText
-                android:id="@+id/endStation"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/rounded_corners"
-                android:backgroundTint="#D9D9D9"
-                android:ems="10"
-                android:hint="Stacja Końcowa"
-                android:inputType="text"
-                android:padding="10dp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/endStationRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone" />
             <AutoCompleteTextView
                 android:id="@+id/endStationDropDown"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                android:layout_height="wrap_content"
+                android:completionThreshold="0"
+                android:hint="Stacja Końcowa"
+                android:backgroundTint="#D9D9D9"
+                android:ems="10"
+                android:background="@drawable/rounded_corners"
+                android:padding="10dp" >
 
             </AutoCompleteTextView>
         </LinearLayout>
