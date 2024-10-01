@@ -1,34 +1,36 @@
 package pl.gotrainey.gotrainey.adapters
 
+import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Filter
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.JsonObject
 
-class StationAdapter(
-    private val suggestionList: List<Map<String, Any>>,
-    private val onItemClick: (String) -> Unit
-) : RecyclerView.Adapter<StationAdapter.ViewHolder>() {
+class StationAdapter(context: Context, resource: Int, private val originalItems: List<String>) :
+    ArrayAdapter<String>(context, resource, originalItems) {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view = LayoutInflater.from(parent.context).inflate(android.R.layout.simple_list_item_1, parent, false)
-        return ViewHolder(view)
-    }
+    // This method is not used for filtering but just returns the original items
+    override fun getFilter(): Filter {
+        return object : Filter() {
+            override fun performFiltering(constraint: CharSequence?): FilterResults {
+                // Skip filtering and return all items
+                val results = FilterResults()
+                results.values = originalItems // Return the original list
+                results.count = originalItems.size
+                return results
+            }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val suggestion = suggestionList[position]["name"]
-        holder.textView.text = suggestion.toString()
-
-        holder.itemView.setOnClickListener {
-            onItemClick(suggestion.toString())
+            override fun publishResults(constraint: CharSequence?, results: FilterResults?) {
+                // No action needed; we are not filtering
+                if (results != null && results.count > 0) {
+                    clear()
+                    addAll(results.values as List<String>)
+                }
+            }
         }
-    }
-
-    override fun getItemCount(): Int = suggestionList.size
-
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        val textView: TextView = itemView.findViewById(android.R.id.text1)
     }
 }

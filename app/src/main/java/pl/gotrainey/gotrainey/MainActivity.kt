@@ -40,10 +40,10 @@ class MainActivity : AppCompatActivity() {
     private val trainApiService = TrainApiService()
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var startStationAdapter: ArrayAdapter<String>
-    private lateinit var endStationAdapter: ArrayAdapter<String>
+    private lateinit var startStationAdapter: StationAdapter
+    private lateinit var endStationAdapter: StationAdapter
 
-    private val startStationsList = mutableListOf<String>("s1", "s", "2qe", "wdadwadw")
+    private val startStationsList = mutableListOf<String>()
     private val endStationsList = mutableListOf<String>()
 
     private lateinit var cartsAdapter: CartsAdapter
@@ -59,12 +59,8 @@ class MainActivity : AppCompatActivity() {
 
         // START STATION ADAPTER
 
-        startStationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, startStationsList)
+        startStationAdapter = StationAdapter(this, android.R.layout.simple_dropdown_item_1line, startStationsList)
         binding.startStationDropDown.setAdapter(startStationAdapter)
-        startStationsList.clear()
-        startStationsList.addAll(mutableListOf("DAWDWA", "DAWWAD"))
-        startStationAdapter.notifyDataSetChanged()
-        Log.d("STATIONS", startStationsList.toString())
 
         binding.startStationDropDown.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {}
@@ -73,11 +69,14 @@ class MainActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 if (!s.isNullOrEmpty()){
                     lifecycleScope.launch {
+                        if (s.length < 2) {
+                            startStationAdapter.clear()
+                        }
                         Log.d("STATIONS", s.toString())
                         val stations = trainApiService.findStation(s.toString())
                         Log.d("STATIONS LIST", stations.toString())
                         if (stations !== null){
-                            fetchSuggestions(adapter = startStationAdapter, autoCompleteTextView = binding.startStationDropDown, listOfStations = startStationsList, newStations = parseJsonToListOfStations(stations))
+                            fetchSuggestions(adapter = startStationAdapter, newStations = parseJsonToListOfStations(stations))
                         }
                     }
                 }
@@ -86,16 +85,20 @@ class MainActivity : AppCompatActivity() {
 
         // END STATION ADAPTER
 
-        endStationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, endStationsList)
+        endStationAdapter = StationAdapter(this, android.R.layout.simple_dropdown_item_1line, endStationsList)
         binding.endStationDropDown.setAdapter(endStationAdapter)
         binding.endStationDropDown.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
                 if (!s.isNullOrEmpty()){
-                    lifecycleScope.launch {
-                        val stations = trainApiService.findStation(s.toString())
-                        Log.d("STATIONS", stations.toString())
-                        if (stations !== null){
-                            fetchSuggestions(adapter = endStationAdapter, autoCompleteTextView = binding.endStationDropDown, listOfStations = endStationsList, newStations = parseJsonToListOfStations(stations))
+                    if (s.length < 2) {
+                        endStationAdapter.clear()
+                    } else {
+                        lifecycleScope.launch {
+                            val stations = trainApiService.findStation(s.toString())
+                            Log.d("STATIONS", stations.toString())
+                            if (stations !== null){
+                                fetchSuggestions(adapter = endStationAdapter, newStations = parseJsonToListOfStations(stations))
+                            }
                         }
                     }
                 }
@@ -230,14 +233,10 @@ class MainActivity : AppCompatActivity() {
         return listOfStations
     }
 
-    private fun fetchSuggestions(adapter: ArrayAdapter<String>, autoCompleteTextView: AutoCompleteTextView, listOfStations: MutableList<String>, newStations: MutableList<String>) {
-
-            startStationsList.clear()
-            startStationsList.addAll(newStations)
-            startStationAdapter.notifyDataSetChanged()
-            Log.d("STATIONS", "${startStationAdapter.count}, ${startStationsList.toString()}")
-
-
+    private fun fetchSuggestions(adapter: ArrayAdapter<String>, newStations: MutableList<String>) {
+        adapter.clear()
+        adapter.addAll(newStations)
+        startStationAdapter.notifyDataSetChanged()
     }
 
     private fun updateCarts(cartsList: MutableList<Map<String, Any>>, adapter: CartsAdapter, carts: List<Map<String, Any>>) {

@@ -87,7 +87,7 @@ class TrainApiService {
     }
 
     suspend fun findStation(stationName: String): JsonObject? {
-        if (stationName.length < 3) {
+        if (stationName.length < 2) {
             Log.d("STATIONS LEN", "Station name length must be at least 3 chars, received $stationName of length ${stationName.length}")
 //            throw IllegalArgumentException("Station name must be at least 3 characters long.")
             return null
