@@ -9,7 +9,6 @@ import com.google.gson.JsonObject
 
 class StationAdapter(
     private val suggestionList: List<Map<String, Any>>,
-    private val recyclerView: RecyclerView,
     private val onItemClick: (String) -> Unit
 ) : RecyclerView.Adapter<StationAdapter.ViewHolder>() {
 

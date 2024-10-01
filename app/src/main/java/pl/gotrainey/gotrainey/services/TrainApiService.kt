@@ -88,17 +88,21 @@ class TrainApiService {
 
     suspend fun findStation(stationName: String): JsonObject? {
         if (stationName.length < 3) {
-            Log.d("TrainApiService", "Station name length must be at least 3 chars, received $stationName of length ${stationName.length}")
+            Log.d("STATIONS LEN", "Station name length must be at least 3 chars, received $stationName of length ${stationName.length}")
 //            throw IllegalArgumentException("Station name must be at least 3 characters long.")
             return null
         }
+        Log.d("STATIONS API CHECK", stationName)
+        val params = mapOf(
+            "q" to stationName,
+            "language" to "pl"
+        )
 
-        val url = "https://koleo.pl/ls"
-        val queryParams = "q=$stationName&language=pl"
-        val fullUrl = "$url?$queryParams"
+        val url = "https://koleo.pl/ls?" + encodeParams(params)
+
 
         val request = Request.Builder()
-            .url(fullUrl)
+            .url(url)
             .addHeader("Accept", "application/json, text/javascript, */*; q=0.01")
             .addHeader("Accept-Encoding", "gzip, deflate, br")
             .addHeader("X-Requested-With", "XMLHttpRequest")

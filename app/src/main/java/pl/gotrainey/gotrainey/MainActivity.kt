@@ -1,38 +1,29 @@
 package pl.gotrainey.gotrainey
 
-import android.os.Build
 import android.os.Build.*
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.findNavController
 import androidx.navigation.ui.AppBarConfiguration
-import androidx.navigation.ui.navigateUp
-import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
-import android.widget.EditText
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
-import androidx.recyclerview.widget.RecyclerView
 import androidx.work.*
 import com.google.gson.JsonObject
-import com.google.gson.JsonParser
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 import pl.gotrainey.gotrainey.adapters.CartsAdapter
 import pl.gotrainey.gotrainey.adapters.StationAdapter
 import pl.gotrainey.gotrainey.data_classes.Path
 import pl.gotrainey.gotrainey.data_classes.TrainDescription
 import pl.gotrainey.gotrainey.data_classes.Trip
 import pl.gotrainey.gotrainey.databinding.ActivityMainBinding
-import pl.gotrainey.gotrainey.interfaces.JsonResponseCallback
 import pl.gotrainey.gotrainey.schedulers.Scheduler
 import pl.gotrainey.gotrainey.services.TrainApiService
 import java.text.SimpleDateFormat
@@ -47,17 +38,16 @@ import java.util.concurrent.TimeUnit
 class MainActivity : AppCompatActivity() {
 
     private val trainApiService = TrainApiService()
-    private lateinit var appBarConfiguration: AppBarConfiguration
     private lateinit var binding: ActivityMainBinding
 
-    private lateinit var startStationAdapter: StationAdapter
-    private lateinit var endStationAdapter: StationAdapter
+    private lateinit var startStationAdapter: ArrayAdapter<String>
+    private lateinit var endStationAdapter: ArrayAdapter<String>
 
-    private val startStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
-    private val endStationList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
+    private val startStationsList = mutableListOf<String>("s1", "s", "2qe", "wdadwadw")
+    private val endStationsList = mutableListOf<String>()
 
     private lateinit var cartsAdapter: CartsAdapter
-    private val cartsList = mutableListOf<Map<String, Any>>()  // List to hold suggestions
+    private val cartsList = mutableListOf<Map<String, Any>>()
 
     private val trip = Trip()
 
@@ -69,23 +59,51 @@ class MainActivity : AppCompatActivity() {
 
         // START STATION ADAPTER
 
-        startStationAdapter = StationAdapter(startStationList, binding.startStationRecyclerView) { selectedItem ->
-            binding.startStation.setText(selectedItem)
-            binding.startStationRecyclerView.visibility = View.GONE
-        }
+        startStationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, startStationsList)
+        binding.startStationDropDown.setAdapter(startStationAdapter)
+        startStationsList.clear()
+        startStationsList.addAll(mutableListOf("DAWDWA", "DAWWAD"))
+        startStationAdapter.notifyDataSetChanged()
+        Log.d("STATIONS", startStationsList.toString())
 
-        binding.startStationRecyclerView.layoutManager = LinearLayoutManager(this)
-        binding.startStationRecyclerView.adapter = startStationAdapter
+        binding.startStationDropDown.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {}
+
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (!s.isNullOrEmpty()){
+                    lifecycleScope.launch {
+                        Log.d("STATIONS", s.toString())
+                        val stations = trainApiService.findStation(s.toString())
+                        Log.d("STATIONS LIST", stations.toString())
+                        if (stations !== null){
+                            fetchSuggestions(adapter = startStationAdapter, autoCompleteTextView = binding.startStationDropDown, listOfStations = startStationsList, newStations = parseJsonToListOfStations(stations))
+                        }
+                    }
+                }
+            }
+        })
 
         // END STATION ADAPTER
 
-        endStationAdapter = StationAdapter(endStationList, binding.endStationRecyclerView) { selectedItem ->
-            binding.endStation.setText(selectedItem)
-            binding.endStationRecyclerView.visibility = View.GONE
-        }
+        endStationAdapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, endStationsList)
+        binding.endStationDropDown.setAdapter(endStationAdapter)
+        binding.endStationDropDown.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable?) {
+                if (!s.isNullOrEmpty()){
+                    lifecycleScope.launch {
+                        val stations = trainApiService.findStation(s.toString())
+                        Log.d("STATIONS", stations.toString())
+                        if (stations !== null){
+                            fetchSuggestions(adapter = endStationAdapter, autoCompleteTextView = binding.endStationDropDown, listOfStations = endStationsList, newStations = parseJsonToListOfStations(stations))
+                        }
+                    }
+                }
+            }
 
-        binding.endStationRecyclerView.layoutManager = LinearLayoutManager(this)
-        binding.endStationRecyclerView.adapter = endStationAdapter
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
         // CARTS ADAPTER
 
@@ -97,58 +115,6 @@ class MainActivity : AppCompatActivity() {
         val snapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(binding.cartsRecyclerView)
 
-
-        //TODO: AFTER CHANGE OF TEXT DISPLAY A LIST OF POSSIBLE STATIONS AND LET USER PICK ONE
-
-        binding.startStation.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                Log.d("BLANK 2", (s.isNullOrEmpty() || startStationList.isEmpty()).toString())
-                if (s.isNullOrEmpty() || startStationList.isEmpty()) {
-                    binding.startStationRecyclerView.visibility = View.GONE
-                }
-                if (!s.isNullOrEmpty()){
-                    binding.startStationRecyclerView.visibility = View.VISIBLE
-
-                    lifecycleScope.launch {
-                        val stations = trainApiService.findStation(s.toString())
-                        Log.d("STATIONS", stations.toString())
-                        if (stations !== null){
-                            fetchSuggestions(suggestionList = startStationList, adapter = startStationAdapter, recyclerView = binding.startStationRecyclerView, stations = parseJsonToListOfMaps(stations))
-                        }
-                    }
-                }
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            }
-        })
-
-        binding.endStation.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable?) {
-                if (s.isNullOrEmpty() || endStationList.isEmpty()) {
-                    binding.endStationRecyclerView.visibility = View.GONE
-                }
-                if (!s.isNullOrEmpty()){
-                    binding.endStationRecyclerView.visibility = View.VISIBLE
-                    lifecycleScope.launch {
-                        val stations = trainApiService.findStation(s.toString())
-                        Log.d("STATIONS", stations.toString())
-                        if (stations !== null){
-                            fetchSuggestions(suggestionList = endStationList, adapter = endStationAdapter, recyclerView = binding.endStationRecyclerView, stations = parseJsonToListOfMaps(stations))
-                        }
-                    }
-                }
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
-            }
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-            }
-        })
 
         binding.trainNumber.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(s: Editable?) {
@@ -164,8 +130,8 @@ class MainActivity : AppCompatActivity() {
 
         //TODO: AFTER USER GETS THE TRAIN THEN GIVE HIM SOME KIND OF A LIST WITH FREE PLACES IN EACH CART
         binding.search.setOnClickListener {
-            val startStation: String = binding.startStation.text.toString()
-            val endStation: String = binding.endStation.text.toString()
+            val startStation: String = binding.startStationDropDown.text.toString()
+            val endStation: String = binding.endStationDropDown.text.toString()
             val trainNumber: String = binding.trainNumber.text.toString()
             trip.trainNumber = trainNumber
             lifecycleScope.launch {
@@ -210,15 +176,15 @@ class MainActivity : AppCompatActivity() {
                                             timeStopLimit = Pair(0, 1),
                                             arrivalDate = workInfo.outputData.getString("arrivalDateTime"))
                                         if (subTrainDescription.connectionId !== null){
-                                            binding.startStation.setText(workInfo.outputData.getString("startStationName").toString())
-                                            binding.endStation.setText(workInfo.outputData.getString("endStationName").toString())
+                                            binding.startStationDropDown.setText(workInfo.outputData.getString("startStationName").toString())
+                                            binding.endStationDropDown.setText(workInfo.outputData.getString("endStationName").toString())
                                             val cartsJson = trainApiService.getTrainPlaces(
                                                 subTrainDescription.connectionId,
                                                 workInfo.outputData.getString("trainNumber").toString()
                                             )
                                             if (cartsJson !== null) {
                                                 val carts = parseFreeSeats(cartsJson)
-                                                updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
+                                                updateCarts(cartsList = cartsList, adapter = cartsAdapter, carts = carts)
                                             }
                                         }
                                     }
@@ -251,32 +217,30 @@ class MainActivity : AppCompatActivity() {
         return calendar
     }
 
-    fun parseJsonToListOfMaps(json: JsonObject): MutableList<Map<String, Any>> {
+    fun parseJsonToListOfStations(json: JsonObject): MutableList<String> {
         val stationsArray = json.getAsJsonArray("stations")
 
-        val listOfMaps = mutableListOf<Map<String, Any>>()
+        val listOfStations = mutableListOf<String>()
 
         for (i in 0 until stationsArray.size()) {
             val station = stationsArray[i].asJsonObject
-            val map = mapOf(
-                "id" to station.get("id").asInt,
-                "name" to station.get("name").asString,
-                "name_slug" to station.get("name_slug").asString
-            )
-            listOfMaps.add(map)
+            listOfStations.add(station.get("name").asString)
         }
 
-        return listOfMaps
+        return listOfStations
     }
 
-    private fun fetchSuggestions(suggestionList: MutableList<Map<String, Any>>, adapter: StationAdapter, recyclerView: RecyclerView, stations: List<Map<String, Any>>) {
-        suggestionList.clear()
-        suggestionList.addAll(stations)
-        adapter.notifyDataSetChanged()
-        Log.d("CHANGE", suggestionList.toString())
+    private fun fetchSuggestions(adapter: ArrayAdapter<String>, autoCompleteTextView: AutoCompleteTextView, listOfStations: MutableList<String>, newStations: MutableList<String>) {
+
+            startStationsList.clear()
+            startStationsList.addAll(newStations)
+            startStationAdapter.notifyDataSetChanged()
+            Log.d("STATIONS", "${startStationAdapter.count}, ${startStationsList.toString()}")
+
+
     }
 
-    private fun updateCarts(cartsList: MutableList<Map<String, Any>>, adapter: CartsAdapter, recyclerView: RecyclerView, carts: List<Map<String, Any>>) {
+    private fun updateCarts(cartsList: MutableList<Map<String, Any>>, adapter: CartsAdapter, carts: List<Map<String, Any>>) {
         cartsList.clear()
         cartsList.addAll(carts)
         adapter.notifyDataSetChanged()
