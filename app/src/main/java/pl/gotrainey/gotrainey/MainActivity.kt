@@ -145,7 +145,7 @@ class MainActivity : AppCompatActivity() {
                     val paths = getPaths(trainDescription.trainId, trainDescription.startDate, startStation, endStation)
                     trip.paths = paths
                     trip.trainId = trainDescription.trainId
-                    var delayInMillis = 10000
+                    var delayInMillis = -10000
                     paths.forEach{
 
                         val inputData = Data.Builder()
@@ -166,46 +166,74 @@ class MainActivity : AppCompatActivity() {
                             .setInputData(inputData)
                             .build()
 
-                        WorkManager.getInstance(applicationContext).enqueue(workRequest)
+                        WorkManager.getInstance(applicationContext).enqueueUniqueWork(
+                            startStation.toString(),
+                            ExistingWorkPolicy.REPLACE,
+                            workRequest
+                        )
 
                         WorkManager.getInstance(applicationContext).getWorkInfoByIdLiveData(workRequest.id)
                             .observe(this@MainActivity) { workInfo ->
                                 if (workInfo != null && workInfo.state == WorkInfo.State.SUCCEEDED) {
                                     lifecycleScope.launch {
-                                        val subTrainDescription: TrainDescription = findTrain(
-                                            workInfo.outputData.getString("startStationName").toString(),
-                                            workInfo.outputData.getString("endStationName").toString(),
-                                            workInfo.outputData.getString("trainNumber").toString(),
-                                            timeStopLimit = Pair(0, 1),
-                                            arrivalDate = workInfo.outputData.getString("arrivalDateTime"))
-                                        if (subTrainDescription.connectionId !== null){
-                                            binding.startStationDropDown.setText(workInfo.outputData.getString("startStationName").toString())
-                                            binding.endStationDropDown.setText(workInfo.outputData.getString("endStationName").toString())
-                                            val cartsJson = trainApiService.getTrainPlaces(
-                                                subTrainDescription.connectionId,
-                                                workInfo.outputData.getString("trainNumber").toString()
+                                        val arrival = LocalDateTime.parse(workInfo.outputData.getString("arrivalDateTime"), DateTimeFormatter.ISO_DATE_TIME)
+                                        val currentDateTime = LocalDateTime.now()
+
+                                        if (arrival?.isAfter(currentDateTime) == false) {
+                                            val subTrainDescription: TrainDescription = findTrain(
+                                                workInfo.outputData.getString("startStationName")
+                                                    .toString(),
+                                                workInfo.outputData.getString("endStationName")
+                                                    .toString(),
+                                                workInfo.outputData.getString("trainNumber")
+                                                    .toString(),
+                                                timeStopLimit = Pair(0, 1),
+                                                arrivalDate = workInfo.outputData.getString("arrivalDateTime")
                                             )
-                                            if (cartsJson !== null) {
-                                                val carts = parseFreeSeats(cartsJson)
-                                                updateCarts(cartsList = cartsList, adapter = cartsAdapter, carts = carts)
+                                            Log.d(
+                                                "UPDATE",
+                                                "UPDATE TRAIN, ${subTrainDescription.startDate}"
+                                            )
+                                            if (subTrainDescription.connectionId !== null) {
+                                                binding.startStationDropDown.setText(
+                                                    workInfo.outputData.getString(
+                                                        "startStationName"
+                                                    ).toString()
+                                                )
+                                                binding.endStationDropDown.setText(
+                                                    workInfo.outputData.getString(
+                                                        "endStationName"
+                                                    ).toString()
+                                                )
+                                                Log.d(
+                                                    "UPDATE",
+                                                    "UPDATE SET NAMES ${
+                                                        workInfo.outputData.getString("startStationName")
+                                                            .toString()
+                                                    }"
+                                                )
+                                                val cartsJson = trainApiService.getTrainPlaces(
+                                                    subTrainDescription.connectionId,
+                                                    workInfo.outputData.getString("trainNumber")
+                                                        .toString()
+                                                )
+                                                if (cartsJson !== null) {
+                                                    val carts = parseFreeSeats(cartsJson)
+                                                    Log.d("UPDATE", "UPDATE CARTS")
+                                                    updateCarts(
+                                                        cartsList = cartsList,
+                                                        adapter = cartsAdapter,
+                                                        carts = carts
+                                                    )
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                     }
-                    }
-//                Log.d("CONNECTION_ID", trainDescription.connectionId.toString())
-//                if (trainDescription.connectionId !== null) {
-//                    val cartsJson = trainApiService.getTrainPlaces(trainDescription.connectionId, trainNumber)
-//                    if (cartsJson !== null) {
-//                        val carts = parseFreeSeats(cartsJson)
-//                        updateCarts(cartsList = cartsList, adapter = cartsAdapter, recyclerView = binding.cartsRecyclerView, carts = carts)
-//                    }
-//                }
+                }
             }
-
-
         }
     }
 
